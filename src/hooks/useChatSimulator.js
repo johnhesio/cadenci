@@ -137,7 +137,7 @@ export function useChatSimulator() {
   );
 
   const handleUserText = useCallback(
-    (text) => {
+    async (text) => {
       pushUser(text);
 
       if (stage === STAGE.SERVICE) {
@@ -183,28 +183,29 @@ export function useChatSimulator() {
           pushBot("Esse número não parece válido. Pode enviar novamente com DDD? Ex: (11) 90000-0000");
           return;
         }
-        const client = findOrCreateClient(parsed.data.name, parsed.data.whatsapp);
-        const finalDraft = { ...draft, whatsapp: parsed.data.whatsapp };
-        addAppointment({
-          date: finalDraft.date,
-          start: finalDraft.time,
-          end: finalDraft.end,
-          serviceId: finalDraft.service.id,
-          serviceName: finalDraft.service.name,
-          durationMinutes: finalDraft.service.durationMinutes,
-          bufferMinutes: finalDraft.service.bufferMinutes,
-          price: finalDraft.service.price,
-          clientId: client.id,
-          clientName: client.name,
-          clientWhatsapp: client.whatsapp,
-          source: "ia",
-        });
-        setDraft(finalDraft);
-        pushBot(
-          `Agendado! ✅\n\n${finalDraft.service.name}\n${formatDateLong(finalDraft.date)} às ${finalDraft.time}\n${formatCurrencyBRL(finalDraft.service.price)}\n\nAté breve, ${client.name.split(" ")[0]}!`,
-          [{ label: "Novo agendamento", value: "restart" }],
-        );
-        setStage(STAGE.DONE);
+        try {
+          const client = await findOrCreateClient(parsed.data.name, parsed.data.whatsapp);
+          const finalDraft = { ...draft, whatsapp: parsed.data.whatsapp };
+          await addAppointment({
+            date: finalDraft.date,
+            start: finalDraft.time,
+            end: finalDraft.end,
+            serviceId: finalDraft.service.id,
+            durationMinutes: finalDraft.service.durationMinutes,
+            bufferMinutes: finalDraft.service.bufferMinutes,
+            price: finalDraft.service.price,
+            clientId: client.id,
+            source: "ia",
+          });
+          setDraft(finalDraft);
+          pushBot(
+            `Agendado! ✅\n\n${finalDraft.service.name}\n${formatDateLong(finalDraft.date)} às ${finalDraft.time}\n${formatCurrencyBRL(finalDraft.service.price)}\n\nAté breve, ${client.name.split(" ")[0]}!`,
+            [{ label: "Novo agendamento", value: "restart" }],
+          );
+          setStage(STAGE.DONE);
+        } catch {
+          pushBot("Tive um problema para confirmar seu agendamento. Pode tentar novamente?");
+        }
       }
     },
     [stage, services, draft, availableSlots, buildDateOptions, selectService, pushBot, pushUser, findOrCreateClient, addAppointment],

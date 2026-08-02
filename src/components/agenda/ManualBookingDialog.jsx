@@ -23,6 +23,7 @@ export default function ManualBookingDialog({ open, onOpenChange, isoDate }) {
   const [name, setName] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const service = services.find((s) => s.id === serviceId);
 
@@ -44,28 +45,33 @@ export default function ManualBookingDialog({ open, onOpenChange, isoDate }) {
     onOpenChange(next);
   }
 
-  function handleConfirm() {
+  async function handleConfirm() {
     const parsed = clientContactSchema.safeParse({ name, whatsapp });
     if (!parsed.success) {
       setError(parsed.error.issues[0].message);
       return;
     }
-    const client = findOrCreateClient(parsed.data.name, parsed.data.whatsapp);
-    addAppointment({
-      date: isoDate,
-      start: selectedSlot.start,
-      end: selectedSlot.end,
-      serviceId: service.id,
-      serviceName: service.name,
-      durationMinutes: service.durationMinutes,
-      bufferMinutes: service.bufferMinutes,
-      price: service.price,
-      clientId: client.id,
-      clientName: client.name,
-      clientWhatsapp: client.whatsapp,
-      source: "manual",
-    });
-    handleOpenChange(false);
+    setError("");
+    setSubmitting(true);
+    try {
+      const client = await findOrCreateClient(parsed.data.name, parsed.data.whatsapp);
+      await addAppointment({
+        date: isoDate,
+        start: selectedSlot.start,
+        end: selectedSlot.end,
+        serviceId: service.id,
+        durationMinutes: service.durationMinutes,
+        bufferMinutes: service.bufferMinutes,
+        price: service.price,
+        clientId: client.id,
+        source: "manual",
+      });
+      handleOpenChange(false);
+    } catch {
+      setError("Não foi possível confirmar o agendamento. Tente novamente.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -144,8 +150,8 @@ export default function ManualBookingDialog({ open, onOpenChange, isoDate }) {
           <Button variant="outline" onClick={() => handleOpenChange(false)}>
             Cancelar
           </Button>
-          <Button disabled={!selectedSlot} onClick={handleConfirm}>
-            Confirmar agendamento
+          <Button disabled={!selectedSlot || submitting} onClick={handleConfirm}>
+            {submitting ? "Confirmando…" : "Confirmar agendamento"}
           </Button>
         </DialogFooter>
       </DialogContent>

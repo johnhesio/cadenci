@@ -24,18 +24,24 @@ export default function BusinessRulesForm({ businessRules, onSave }) {
     control,
     handleSubmit,
     watch,
-    formState: { errors },
+    formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(businessSettingsSchema),
     defaultValues: businessRules,
   });
 
   const lunchEnabled = watch("lunchBreak.enabled");
+  const [saveError, setSaveError] = useState("");
 
-  function submit(data) {
-    onSave(data);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  async function submit(data) {
+    setSaveError("");
+    try {
+      await onSave(data);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch {
+      setSaveError("Não foi possível salvar as configurações. Tente novamente.");
+    }
   }
 
   return (
@@ -129,12 +135,15 @@ export default function BusinessRulesForm({ businessRules, onSave }) {
       </section>
 
       <div className="flex items-center gap-3 pt-2">
-        <Button type="submit">Salvar configurações</Button>
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? "Salvando…" : "Salvar configurações"}
+        </Button>
         {saved && (
           <span className="flex items-center gap-1 text-sm text-sage">
             <Check className="h-4 w-4" /> Salvo
           </span>
         )}
+        {saveError && <span className="text-sm text-rose">{saveError}</span>}
       </div>
     </form>
   );
